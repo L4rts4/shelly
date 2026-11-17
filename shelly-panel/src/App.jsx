@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 const DEMO_DEVICES = [
   { host: "demo-1", type: "Switch", name: "Olohuoneen valo", model: "Shelly Plus 1PM", status: { output: true, apower: 42.3, voltage: 231, current: 0.18 } },
@@ -19,6 +19,21 @@ export default function App() {
     setLogs((prev) => [`${time}  ${msg}`, ...prev].slice(0, 50));
   }
 
+  useEffect(() => {
+    const timer = setInterval(async () => {
+      if (demo) return;
+      for (const d of devices) {
+        try {
+          const status = await (await fetch(`/shelly/${d.host}/rpc/${d.type}.GetStatus?id=0`)).json();
+          log(`${d.name}: ${JSON.stringify(status)}`);
+        } catch {
+          log(`${d.name}: ei vastaa`);
+        }
+      }
+    }, 5000);
+    return () => clearInterval(timer);
+  }, [devices, demo]);
+
   function onTitleClick() {
     if (clicks + 1 >= 3) {
       setDemo(!demo);
@@ -34,9 +49,9 @@ export default function App() {
     const host = ip.trim();
     if (!host) return;
     try {
-      const info = await (await fetch(`http://${host}/rpc/Shelly.GetDeviceInfo`)).json();
+      const info = await (await fetch(`/shelly/${host}/rpc/Shelly.GetDeviceInfo`)).json();
       const type = info.app?.toLowerCase().includes("dimmer") ? "Light" : "Switch";
-      const status = await (await fetch(`http://${host}/rpc/${type}.GetStatus?id=0`)).json();
+      const status = await (await fetch(`/shelly/${host}/rpc/${type}.GetStatus?id=0`)).json();
       setDevices([...devices, { host, type, name: info.name || info.model, model: info.model, status }]);
       log(`Lisättiin laite ${host}`);
       setIp("");
@@ -49,8 +64,8 @@ export default function App() {
   async function update(i, params) {
     if (demo) return;
     const d = devices[i];
-    await fetch(`http://${d.host}/rpc/${d.type}.Set?id=0&${params}`);
-    const status = await (await fetch(`http://${d.host}/rpc/${d.type}.GetStatus?id=0`)).json();
+    await fetch(`/shelly/${d.host}/rpc/${d.type}.Set?id=0&${params}`);
+    const status = await (await fetch(`/shelly/${d.host}/rpc/${d.type}.GetStatus?id=0`)).json();
     setDevices(devices.map((x, j) => (j === i ? { ...x, status } : x)));
     log(`${d.name}: ${status.output ? "päälle" : "pois"}`);
   }
@@ -61,7 +76,7 @@ export default function App() {
 
       {!demo && (
         <div>
-          <input value={ip} onChange={(e) => setIp(e.target.value)} placeholder="esim. 192.168.1.50" />
+          <input value={ip} onChange={(e) => setIp(e.target.value)} placeholder="IP, esim. 192.168.33.1" />
           <button onClick={add}>Lisää</button>
         </div>
       )}
