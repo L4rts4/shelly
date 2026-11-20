@@ -6,7 +6,6 @@ function shellyProxy() {
   return {
     name: "shelly-proxy",
     configureServer(server) {
-      // /shelly/<IP>/rpc/... -> http://<IP>/rpc/...
       server.middlewares.use("/shelly", (req, res) => {
         const [ip, ...rest] = req.url.slice(1).split("/");
         const path = "/" + rest.join("/");
