@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 
 const DEMO_DEVICES = [
   { host: "demo-1", type: "Switch", name: "Olohuoneen valo", status: { output: true, apower: 42.3, voltage: 231, current: 0.18 } },
@@ -30,21 +30,21 @@ export default function App() {
   const [dark, setDark] = useState(false);
   const t = dark ? themes.dark : themes.light;
 
+  const devicesRef = useRef(devices);
+  devicesRef.current = devices;
+
   useEffect(() => {
-      for (const d of devices) {
     document.body.style.background = t.bg;
   }, [t.bg]);
+
   useEffect(() => {
     const timer = setInterval(() => {
-      setDevices((prev) => {
-        prev.forEach(async (d) => {
-          if (d.host.startsWith("demo")) return;
-          try {
-            const status = await get(`/shelly/${d.host}/rpc/${d.type}.GetStatus?id=0`);
-            setDevices((cur) => cur.map((x) => (x.host === d.host ? { ...x, status } : x)));
-          } catch {}
-        });
-        return prev;
+      devicesRef.current.forEach(async (d) => {
+        if (d.host.startsWith("demo")) return;
+        try {
+          const status = await get(`/shelly/${d.host}/rpc/${d.type}.GetStatus?id=0`);
+          setDevices((cur) => cur.map((x) => (x.host === d.host ? { ...x, status } : x)));
+        } catch {}
       });
     }, 5000);
     return () => clearInterval(timer);
