@@ -28,10 +28,12 @@ export default function App() {
   const [ip, setIp] = useState("");
   const [open, setOpen] = useState(null);
   const [dark, setDark] = useState(false);
+  const [stats, setStats] = useState({ max: 0 });
   const t = dark ? themes.dark : themes.light;
 
   const devicesRef = useRef(devices);
   devicesRef.current = devices;
+  const totalRef = useRef(0);
 
   useEffect(() => {
     document.body.style.background = t.bg;
@@ -47,6 +49,15 @@ export default function App() {
         } catch {}
       });
     }, 5000);
+    return () => clearInterval(timer);
+  }, []);
+
+  useEffect(() => {
+    const INTERVAL = 5000;
+    const timer = setInterval(() => {
+      const p = totalRef.current;
+      setStats((s) => ({ max: Math.max(s.max, p) }));
+    }, INTERVAL);
     return () => clearInterval(timer);
   }, []);
 
@@ -96,11 +107,22 @@ export default function App() {
 
   const shown = demoOn ? [...DEMO_DEVICES.filter((d) => !devices.some((x) => x.host === d.host)), ...devices] : devices;
 
+  const totalPower = shown.reduce((s, d) => s + (d.status.apower ?? 0), 0);
+  const activeCount = shown.filter((d) => (d.status.apower ?? 0) > 0).length;
+  const avgPerDevice = shown.length ? totalPower / shown.length : 0;
+  totalRef.current = totalPower;
+
   return (
     <div style={{ minHeight: "100vh", background: t.bg, color: t.text, fontFamily: "-apple-system, system-ui, sans-serif", padding: "32px 20px", boxSizing: "border-box" }}>
       <div style={{ maxWidth: 520, margin: "0 auto" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 24 }}>
           <h1 onClick={onTitleClick} style={{ fontSize: 28, fontWeight: 600, margin: 0, cursor: "pointer", userSelect: "none" }}>Shelly</h1>
+          <div style={{ display: "flex", gap: 16, flex: 1, margin: "0 16px" }}>
+            <Stat label="Yhteensä" value={`${totalPower.toFixed(1)} W`} t={t} />
+            <Stat label="Keskiarvo" value={`${avgPerDevice.toFixed(1)} W`} t={t} />
+            <Stat label="Huippu" value={`${stats.max.toFixed(1)} W`} t={t} />
+            <Stat label="Käytössä" value={`${activeCount} / ${shown.length}`} t={t} />
+          </div>
           <button onClick={() => setDark(!dark)} style={{ padding: "6px 12px", borderRadius: 8, border: `1px solid ${t.border}`, background: t.card, color: t.text, cursor: "pointer", fontSize: 13 }}>
             {dark ? "Vaalea" : "Tumma"}
           </button>
@@ -170,6 +192,7 @@ export default function App() {
           );
         })}
       </div>
+
     </div>
   );
 }
